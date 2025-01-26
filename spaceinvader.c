@@ -12,9 +12,12 @@
 #define LARGURA_BALA 10
 #define ALTURA_BALA 15
 
-int tirodado = 0;
-int heroiescolhido = 0;
-int fimdejogo = 0;
+
+typedef struct Menu{
+    int aberto;
+    char nome[30];
+}Menu;
+
 typedef struct Bala{
     Rectangle pos;
     Color color;
@@ -30,14 +33,19 @@ typedef struct Nave{
     Bala bala;
     int velocidade;
     int direcao;
+    int tiroAtual;
+    int tiroAnterior;
 }Nave;
 
 typedef struct Heroi{
+    Texture2D sprite;
     Rectangle pos;
     Color color;
     Bala bala;
     int velocidade;
-    Texture2D sprite;
+    int colisaoBordaEsquerda;
+    int colisaoBordaDireita;
+    int vidas;
 }Heroi;
 
 typedef struct Bordas{
@@ -50,6 +58,7 @@ typedef struct Assets{
 }Assets;
 
 typedef struct Jogo{
+    Menu menu;
     Nave nave;
     Heroi heroi;
     Bordas bordas[4];
@@ -57,6 +66,7 @@ typedef struct Jogo{
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
+    int vidaBarricada[3];
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -74,11 +84,14 @@ void DesenhaBordas(Jogo *j);
 void AtiraBalas(Jogo *j);
 void CarregaImagens(Jogo *j);
 void DescarregaImagens(Jogo *j);
+void ColisaoBordasHeroi(Jogo *j);
+void AtiraBalaHeroi (Jogo *j);
+int ColisaoBalasHeroi(Jogo *j);
 void DesenhaBalasHeroi(Jogo *j);
-void tiroHeroi(Jogo *j);
-int ColisaoBalaH(Jogo*j);
-void escolheheroi(Jogo *j);
-void escolha(Jogo *j);
+void Pause(Jogo *j);
+void SkinHeroi(Jogo *j);
+void Acertou(Jogo *j);
+
 
 int main(){
     InitAudioDevice();
@@ -106,14 +119,21 @@ int main(){
 }
 
 void IniciaJogo(Jogo *j){
+    j->menu.aberto = 1;
+
     j->tempoAnimacao = GetTime();
 
     j->heroi.pos = (Rectangle) {LARGURA_JANELA/2 - STD_SIZE_X/2, ALTURA_JANELA - STD_SIZE_Y -10, STD_SIZE_X, STD_SIZE_Y};
     j->heroi.color = BLUE;
-    j->heroi.bala.ativa=0;
-    j->heroi.bala.velocidade = 6;
+    j->heroi.velocidade = 4;
+    j->heroi.colisaoBordaDireita = 0;
+    j->heroi.colisaoBordaEsquerda = 0;
+    j->heroi.bala.ativa = 0;
+    j->heroi.bala.velocidade = 5;
+    j->heroi.vidas = 3;
 
-
+    j->nave.tiroAtual = 0;
+    j->nave.tiroAnterior = 0;
     j->nave.pos = (Rectangle) {0, 15, STD_SIZE_X, STD_SIZE_Y};
     j->nave.color = RED;
     j->nave.velocidade = 3;
@@ -137,61 +157,33 @@ void IniciaJogo(Jogo *j){
 void IniciaNaves(Jogo *j){
 
 }
-void escolha(Jogo *j) {
-    if (IsKeyPressed(KEY_LEFT)) {
-        j->heroi.sprite = LoadTexture("assets/heroi.png");
-        heroiescolhido = 1;
-    } else if (IsKeyPressed(KEY_RIGHT)) {
-        j->heroi.sprite = LoadTexture("assets/heroi1.png");
-        heroiescolhido = 2;
-    } else if (IsKeyPressed(KEY_UP)){
-        j->heroi.sprite = LoadTexture("assets/heroi2.png");
-        heroiescolhido = 3;
-    } else if (IsKeyPressed(KEY_DOWN)){
-        j->heroi.sprite = LoadTexture("assets/heroi3.png");
-        heroiescolhido = 3;
+
+void AtualizaJogo(Jogo *j){
+    if (j->menu.aberto == 0) {
+    AtualizaNavePos(j);
+    AtiraBalas(j);
+    AtiraBalaHeroi(j);
+    DrawText(TextFormat("Vidas: %i", j->heroi.vidas), 20, 20, 20, WHITE);
+    if (IsKeyPressed(KEY_P)) {
+        j->menu.aberto = 1;
     }
-}
-void escolheheroi(Jogo *j) {
-    BeginDrawing();
-    DrawTexture(LoadTexture("assets/heroi.png"), 300, 400, WHITE);
-    DrawTexture(LoadTexture("assets/heroi1.png"), 500, 400, WHITE);
-    DrawTexture(LoadTexture("assets/heroi2.png"), 400, 300, WHITE);
-    DrawTexture(LoadTexture("assets/heroi3.png"), 400, 500, WHITE);
-    escolha(j);
-    if (heroiescolhido != 0) {
-    EndDrawing();
     }
 }
 
-void AtualizaJogo(Jogo *j){
-    if (fimdejogo == 0) {
-        if (heroiescolhido == 0) {
-        escolheheroi(j); }
-        else {
-        AtualizaNavePos(j);
-        AtiraBalas(j);
-        tiroHeroi(j);
-        if (tirodado == 1) {
-                DrawText("Você Perdeu", 340, 100, 20, RED);
-        } else if (tirodado == 2) {
-                DrawText("Você Ganhou", 340, 100, 20, GREEN);
-        }
-    }
-    } else {
-        if (tirodado == 1) {
-                DrawText("Você Perdeu", 340, 100, 20, RED);
-        } else if (tirodado == 2) {
-                DrawText("Você Ganhou", 340, 100, 20, GREEN);
-        }
-    }
-}
 void DesenhaJogo(Jogo *j){
     BeginDrawing();
+    DesenhaBordas(j);
+    if (j->menu.aberto == 0) {
     ClearBackground(BLACK);
     DesenhaNaves(j);
     DesenhaHeroi(j);
-    DesenhaBordas(j);
+    } else if (j->menu.aberto == 1) {
+        Pause(j);
+        SkinHeroi(j);
+    if (IsKeyPressed (KEY_ENTER)) {
+        j->menu.aberto = 0;
+    }
+    }
     EndDrawing();
 }
 
@@ -211,6 +203,7 @@ void AtualizaNavePos(Jogo *j){
 
 void CarregaImagens(Jogo *j){
     j->assets.naveVerde = LoadTexture("assets/GreenAnimation.png");
+
 }
 
 void DescarregaImagens(Jogo *j){
@@ -218,50 +211,38 @@ void DescarregaImagens(Jogo *j){
 }
 
 void DesenhaNaves(Jogo *j){
-    if (fimdejogo != 1) {
-        Vector2 tamanhoFrame = {32, 32};
-        
-        static Vector2 frame = {0, 0};
-        static float tempoUltimaTroca = 0;
-        
-        if(GetTime() - tempoUltimaTroca >= 1){
-            if(frame.x == 0){
-                frame.x = 1;
-            }else{
-                frame.x = 0;
-            }
-
-            tempoUltimaTroca = GetTime();
+    Vector2 tamanhoFrame = {32, 32};
+    
+    static Vector2 frame = {0, 0};
+    static float tempoUltimaTroca = 0;
+    
+    if(GetTime() - tempoUltimaTroca >= 1){
+        if(frame.x == 0){
+            frame.x = 1;
+        }else{
+            frame.x = 0;
         }
-        Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
-        tamanhoFrame.x, tamanhoFrame.y};
-        DrawTexturePro(j->assets.naveVerde, frameRecNave, (Rectangle){j->nave.pos.x, j->nave.pos.y, 32, 32},
-        (Vector2){0, 0}, 0.0f, WHITE);
-        
+
+        tempoUltimaTroca = GetTime();
     }
+    Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y*tamanhoFrame.y,
+     tamanhoFrame.x, tamanhoFrame.y};
+    DrawTexturePro(j->assets.naveVerde, frameRecNave, (Rectangle){j->nave.pos.x, j->nave.pos.y, 32, 32},
+    (Vector2){0, 0}, 0.0f, WHITE);
+    
 }
 
 void DesenhaHeroi(Jogo *j){
-    if (fimdejogo != 2) {
-        int heroispeed = 3.5;
-        if (j->heroi.pos.x >= 10 && j->heroi.pos.x <= 757) {
-        if (IsKeyDown(KEY_LEFT)) {
-            j->heroi.pos.x -= heroispeed;
-        } else if (IsKeyDown(KEY_RIGHT)) {
-            j->heroi.pos.x += heroispeed;
-        }
-        } else if (j->heroi.pos.x <= 10) {
-            if (IsKeyDown(KEY_RIGHT)) {
-            j->heroi.pos.x += heroispeed;
-        } 
-        } else if (j->heroi.pos.x >= 757) {
-            if (IsKeyDown(KEY_LEFT)) {
-            j->heroi.pos.x -= heroispeed;
-        }
-        }
-        DrawTexture(j->heroi.sprite, j->heroi.pos.x, j->heroi.pos.y, WHITE);
-
+    DrawTexture(j->heroi.sprite, j->heroi.pos.x, j->heroi.pos.y, WHITE);
+    ColisaoBordasHeroi(j);
+    if (IsKeyDown(KEY_LEFT) && j->heroi.colisaoBordaEsquerda == 0) {
+        j->heroi.pos.x -= j->heroi.velocidade;
+        j->heroi.colisaoBordaDireita = 0;
+    } else if (IsKeyDown(KEY_RIGHT) && j->heroi.colisaoBordaDireita == 0) {
+        j->heroi.pos.x += j->heroi.velocidade;
+        j->heroi.colisaoBordaEsquerda = 0;
     }
+
 }
 
 void DesenhaBordas(Jogo *j){
@@ -269,36 +250,20 @@ void DesenhaBordas(Jogo *j){
         DrawRectangleRec(j->bordas[i].pos, LIGHTGRAY);
     }
 }
-void tiroHeroi(Jogo *j) {
-    if (IsKeyPressed(KEY_SPACE)) {
-        if (j->heroi.bala.ativa==0) {
-            j->heroi.bala.pos = (Rectangle){j->heroi.pos.x+j->heroi.pos.width/2, j->heroi.pos.y+j->nave.pos.height/2,
-            LARGURA_BALA, ALTURA_BALA};
-            j->heroi.bala.ativa = 1;
-            PlaySound(j->nave.bala.tiro);
-        } else if (ColisaoBalaH(j) == 1) {
-            j->heroi.bala.ativa = 0;
-        }
-    }
-    if (j->heroi.bala.ativa == 1) {
-        j->heroi.bala.pos.y -= j->heroi.bala.velocidade;
-        DesenhaBalasHeroi(j);
-        if (ColisaoBalaH(j) == 1) {
-            j->heroi.bala.ativa = 0;
-        }
-    }
-    }
-void DesenhaBalasHeroi(Jogo *j){
-    DrawRectangleRec(j->heroi.bala.pos, SKYBLUE);
-}
+
 void DesenhaBalas(Jogo *j){
     DrawRectangleRec(j->nave.bala.pos, YELLOW);
+}
+
+void DesenhaBalasHeroi(Jogo *j){
+    DrawRectangleRec(j->heroi.bala.pos, j->heroi.bala.color);
 }
 
 void AtiraBalas(Jogo *j){
     if(j->nave.bala.ativa == 0 && GetTime()-j->nave.bala.tempo > 3){
         j->nave.bala.pos = (Rectangle){j->nave.pos.x+j->nave.pos.width/2, j->nave.pos.y+j->nave.pos.height/2, 
         LARGURA_BALA, ALTURA_BALA};
+        j->nave.tiroAtual ++;
         j->nave.bala.ativa = 1;
         j->nave.bala.tempo = GetTime();
         PlaySound(j->nave.bala.tiro);
@@ -311,33 +276,41 @@ void AtiraBalas(Jogo *j){
         DesenhaBalas(j);
     }
 }
+void AtiraBalaHeroi (Jogo *j) {
+    if (IsKeyPressed(KEY_SPACE) && j->heroi.bala.ativa == 0) {
+        j->heroi.bala.pos = (Rectangle) {j->heroi.pos.x+j->heroi.pos.width/2, j->heroi.pos.y+j->heroi.pos.height/2, LARGURA_BALA, ALTURA_BALA};
+        j->heroi.bala.ativa = 1;
+        PlaySound(j->nave.bala.tiro);
+    } else if (ColisaoBalasHeroi(j)) {
+        j->heroi.bala.ativa = 0;
+    }
+    if (j->heroi.bala.ativa == 1) {
+        j->heroi.bala.pos.y -= j->heroi.bala.velocidade;
+        DesenhaBalasHeroi(j);
+    }
+}
+
 
 
 void ColisaoBordas(Jogo *j){
-    if(CheckCollisionRecs(j->nave.pos, j->bordas[2].pos)){
+    if(CheckCollisionRecs(j->nave.pos, j->bordas[2].pos)){ //direita
         j->nave.direcao = 1;
-    }else if(CheckCollisionRecs(j->nave.pos, j->bordas[3].pos)){
+    }else if(CheckCollisionRecs(j->nave.pos, j->bordas[3].pos)){ //esquerda
         j->nave.direcao = 0;
     }
 }
-int ColisaoBalaH(Jogo *j) {
-    if (CheckCollisionRecs(j->nave.pos, j->heroi.bala.pos)) {
-        tirodado = 2;
-        DrawText("Você Perdeu", 350, 100, 20, GREEN);
-        fimdejogo = 1;
-        return 1;
+void ColisaoBordasHeroi(Jogo *j){
+    if(CheckCollisionRecs(j->heroi.pos, j->bordas[2].pos)){ //esquerda
+        j->heroi.colisaoBordaEsquerda = 1;
+    }else if(CheckCollisionRecs(j->heroi.pos, j->bordas[3].pos)){ //direita
+        j->heroi.colisaoBordaDireita = 1;
     }
-    if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
-        return 1;
-    }
-    return 0;
 }
 
 int ColisaoBalas(Jogo *j){
     // Colisao bala com heroi
     if(CheckCollisionRecs(j->heroi.pos, j->nave.bala.pos)){
-        fimdejogo = 2;
-        tirodado = 1;
+        Acertou(j);
         return 1;
     }
     // Colisao bala com borda de baixo
@@ -345,4 +318,56 @@ int ColisaoBalas(Jogo *j){
         return 1;
     }
     return 0;
+}
+
+int ColisaoBalasHeroi(Jogo *j){
+    // Colisao bala com heroi
+    if(CheckCollisionRecs(j->nave.pos, j->heroi.bala.pos)){
+        return 1;
+    }
+    // Colisao bala com borda de cima
+    if(CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)){
+        return 1;
+    }
+    return 0;
+}
+
+void Pause(Jogo *j) {
+    DrawText("Menu", ALTURA_JANELA/2-40, LARGURA_JANELA/4, 40 ,WHITE);
+    DrawText("Pressione ENTER pra começar", ALTURA_JANELA/3-50, LARGURA_JANELA/3, 25 ,WHITE);
+    DrawText("Pressione de 1 a 4 para escolher sua nave", ALTURA_JANELA/3-125, LARGURA_JANELA/3+35, 25 ,WHITE);
+    DrawTexture(LoadTexture("assets/heroi.png"), ALTURA_JANELA/2 - 200,LARGURA_JANELA/2-16, WHITE);
+    DrawTexture(LoadTexture("assets/heroi1.png"), ALTURA_JANELA/2 - 75,LARGURA_JANELA/2-16, WHITE);
+    DrawTexture(LoadTexture("assets/heroi2.png"), ALTURA_JANELA/2 + 75,LARGURA_JANELA/2-16, WHITE);
+    DrawTexture(LoadTexture("assets/heroi3.png"), ALTURA_JANELA/2 + 200,LARGURA_JANELA/2-16, WHITE);
+}
+void SkinHeroi(Jogo*j) {
+    if (IsKeyPressed(KEY_ONE)) {
+        j->heroi.sprite = LoadTexture("assets/heroi.png");
+        j->heroi.bala.color = SKYBLUE;
+        DrawRectangleRec(j->heroi.pos, BLACK);
+        DrawTexture(j->heroi.sprite, j->heroi.pos.x,j->heroi.pos.y, WHITE);
+    } else if (IsKeyPressed(KEY_TWO)) {
+        j->heroi.sprite = LoadTexture("assets/heroi1.png");
+        j->heroi.bala.color = RED;
+        DrawRectangleRec(j->heroi.pos, BLACK);
+        DrawTexture(j->heroi.sprite, j->heroi.pos.x,j->heroi.pos.y, WHITE);
+    } else if (IsKeyPressed(KEY_THREE)) {
+        j->heroi.sprite = LoadTexture("assets/heroi2.png");
+        j->heroi.bala.color = GRAY;
+        DrawRectangleRec(j->heroi.pos, BLACK);
+        DrawTexture(j->heroi.sprite, j->heroi.pos.x,j->heroi.pos.y, WHITE);
+    } else if (IsKeyPressed(KEY_FOUR)) {
+        j->heroi.sprite = LoadTexture("assets/heroi3.png");
+        j->heroi.bala.color = GREEN;
+        DrawRectangleRec(j->heroi.pos, BLACK);
+        DrawTexture(j->heroi.sprite, j->heroi.pos.x,j->heroi.pos.y, WHITE);
+    }
+}
+
+void Acertou(Jogo *j) {
+    if (j->nave.tiroAtual != j->nave.tiroAnterior) {
+        j->nave.tiroAnterior = j->nave.tiroAtual;
+        j->heroi.vidas --;
+    }
 }
