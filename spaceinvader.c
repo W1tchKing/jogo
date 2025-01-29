@@ -18,6 +18,12 @@ typedef struct Menu{
     char nome[30];
 }Menu;
 
+typedef struct Barricadas {
+    Rectangle pos;
+    Color color;
+    int vidas;
+} Barricadas;
+
 typedef struct Bala{
     Rectangle pos;
     Color color;
@@ -63,10 +69,10 @@ typedef struct Jogo{
     Heroi heroi;
     Bordas bordas[4];
     Assets assets;
+    Barricadas barricada[9];
     int alturaJanela;
     int larguraJanela;
     int tempoAnimacao;
-    int vidaBarricada[3];
 }Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -91,6 +97,7 @@ void DesenhaBalasHeroi(Jogo *j);
 void Pause(Jogo *j);
 void SkinHeroi(Jogo *j);
 void Acertou(Jogo *j);
+void DesenhaBarricada(Jogo *j);
 
 
 int main(){
@@ -120,6 +127,26 @@ int main(){
 
 void IniciaJogo(Jogo *j){
     j->menu.aberto = 1;
+
+    for (int i = 0; i < 3; i ++) {
+        for (int i = 0; i < 9; i ++) {
+        j->barricada[i].vidas = 1;
+        }
+        if (i == 0) { // as 3 da esquerda
+            j -> barricada[i].pos = (Rectangle) {(LARGURA_JANELA/2) - 16, (ALTURA_JANELA/2 + ALTURA_JANELA/3), 64, 32};
+            j -> barricada[3].pos = (Rectangle) {(LARGURA_JANELA/2) - 8, (ALTURA_JANELA/2 + ALTURA_JANELA/3)-32, 48, 32};
+            j -> barricada[4].pos = (Rectangle) {(LARGURA_JANELA/2), (ALTURA_JANELA/2 + ALTURA_JANELA/3)-64, 32, 32};
+        } else if (i == 1) { // as 3 do meio
+            j->barricada[i].pos = (Rectangle) {(LARGURA_JANELA/4) - 16, (ALTURA_JANELA/2 + ALTURA_JANELA/3), 64, 32};
+            j->barricada[5].pos = (Rectangle) {(LARGURA_JANELA/4) - 8, (ALTURA_JANELA/2 + ALTURA_JANELA/3)-32, 48, 32};
+            j->barricada[6].pos = (Rectangle) {(LARGURA_JANELA/4), (ALTURA_JANELA/2 + ALTURA_JANELA/3)-64, 32, 32};
+        } else if (i == 2) { // as tres da direita
+            j->barricada[i].pos = (Rectangle) {(3*LARGURA_JANELA/4) - 16, (ALTURA_JANELA/2 + ALTURA_JANELA/3), 64, 32};
+            j->barricada[7].pos = (Rectangle) {(3*LARGURA_JANELA/4) - 8, (ALTURA_JANELA/2 + ALTURA_JANELA/3)-32, 48, 32};
+            j->barricada[8].pos = (Rectangle) {(3*LARGURA_JANELA/4), (ALTURA_JANELA/2 + ALTURA_JANELA/3)-64, 32, 32};
+        }
+
+    }
 
     j->tempoAnimacao = GetTime();
 
@@ -177,6 +204,7 @@ void DesenhaJogo(Jogo *j){
     ClearBackground(BLACK);
     DesenhaNaves(j);
     DesenhaHeroi(j);
+    DesenhaBarricada(j);
     } else if (j->menu.aberto == 1) {
         Pause(j);
         SkinHeroi(j);
@@ -317,6 +345,14 @@ int ColisaoBalas(Jogo *j){
     if(CheckCollisionRecs(j->nave.bala.pos, j->bordas[1].pos)){
         return 1;
     }
+    for (int i = 0; i<9; i++) {
+        if (j->barricada[i].vidas > 0) {
+    if(CheckCollisionRecs(j->barricada[i].pos, j->nave.bala.pos)){
+        j->barricada[i].vidas --;
+        return 1;
+    }
+    }
+    }
     return 0;
 }
 
@@ -369,5 +405,12 @@ void Acertou(Jogo *j) {
     if (j->nave.tiroAtual != j->nave.tiroAnterior) {
         j->nave.tiroAnterior = j->nave.tiroAtual;
         j->heroi.vidas --;
+    }
+}
+
+void DesenhaBarricada(Jogo *j) {
+    for (int i = 0; i < 9; i++) {
+        if (j->barricada[i].vidas > 0)
+        DrawRectangleRec(j->barricada[i].pos, SKYBLUE);
     }
 }
