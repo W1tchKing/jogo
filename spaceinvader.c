@@ -98,6 +98,8 @@ void Pause(Jogo *j);
 void SkinHeroi(Jogo *j);
 void Acertou(Jogo *j);
 void DesenhaBarricada(Jogo *j);
+void FimJogo(Jogo *j);
+void TelaFimJogo(Jogo *j);
 
 
 int main(){
@@ -118,6 +120,7 @@ int main(){
     while(!WindowShouldClose()){
         UpdateMusicStream(musicaJogo);
         AtualizaFrameDesenho(&jogo);
+        FimDeJogo(&jogo);
     }
     UnloadMusicStream(musicaJogo);
     DescarregaImagens(&jogo);
@@ -194,6 +197,9 @@ void AtualizaJogo(Jogo *j){
     if (IsKeyPressed(KEY_P)) {
         j->menu.aberto = 1;
     }
+    if(IsKeyPressed(KEY_F2)){
+        j->menu.aberto = 2;
+    }
     }
 }
 
@@ -211,6 +217,8 @@ void DesenhaJogo(Jogo *j){
     if (IsKeyPressed (KEY_ENTER)) {
         j->menu.aberto = 0;
     }
+    } else if(j->menu.aberto == 2){
+        TelaFimDeJogo(j);
     }
     EndDrawing();
 }
@@ -304,6 +312,7 @@ void AtiraBalas(Jogo *j){
         DesenhaBalas(j);
     }
 }
+
 void AtiraBalaHeroi (Jogo *j) {
     if (IsKeyPressed(KEY_SPACE) && j->heroi.bala.ativa == 0) {
         j->heroi.bala.pos = (Rectangle) {j->heroi.pos.x+j->heroi.pos.width/2, j->heroi.pos.y+j->heroi.pos.height/2, LARGURA_BALA, ALTURA_BALA};
@@ -318,8 +327,6 @@ void AtiraBalaHeroi (Jogo *j) {
     }
 }
 
-
-
 void ColisaoBordas(Jogo *j){
     if(CheckCollisionRecs(j->nave.pos, j->bordas[2].pos)){ //direita
         j->nave.direcao = 1;
@@ -327,6 +334,7 @@ void ColisaoBordas(Jogo *j){
         j->nave.direcao = 0;
     }
 }
+
 void ColisaoBordasHeroi(Jogo *j){
     if(CheckCollisionRecs(j->heroi.pos, j->bordas[2].pos)){ //esquerda
         j->heroi.colisaoBordaEsquerda = 1;
@@ -377,6 +385,7 @@ void Pause(Jogo *j) {
     DrawTexture(LoadTexture("assets/heroi2.png"), ALTURA_JANELA/2 + 75,LARGURA_JANELA/2-16, WHITE);
     DrawTexture(LoadTexture("assets/heroi3.png"), ALTURA_JANELA/2 + 200,LARGURA_JANELA/2-16, WHITE);
 }
+
 void SkinHeroi(Jogo*j) {
     if (IsKeyPressed(KEY_ONE)) {
         j->heroi.sprite = LoadTexture("assets/heroi.png");
@@ -413,4 +422,15 @@ void DesenhaBarricada(Jogo *j) {
         if (j->barricada[i].vidas > 0)
         DrawRectangleRec(j->barricada[i].pos, SKYBLUE);
     }
+}
+
+void FimDeJogo(Jogo *j) {
+    if (j->heroi.vidas <=0) {
+        j->menu.aberto = 2;
+    }
+}
+
+void TelaFimDeJogo(Jogo *j){
+    ClearBackground(BLACK);
+    DrawText("Acabou!", (LARGURA_JANELA/3)+50, ALTURA_JANELA / 4 , 40, WHITE);
 }
